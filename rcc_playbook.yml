@@ -1,0 +1,56 @@
+- hosts: sajani
+
+  user: root
+
+  vars:
+     source_location: /application/src
+     git_version: HEAD
+     play_version: 2.1.5
+     dbname: rcc
+     templates: ./templates
+
+  tasks:
+
+   - name: Install Java and other dependencies, zip and git
+     yum: name={{ item }} state=installed
+     with_items:
+      - java-1.6.0-openjdk
+      - java-1.6.0-openjdk-devel
+      - libselinux-python
+      - unzip
+      - git
+
+   - name: Clone repository
+     git: repo=http://rPonnu:Twchennai-1234@sifyscm02.thoughtworks.com/rcc.git dest={{source_location}} version={{git_version}}
+
+   - name: Download play framework
+     get_url: url=http://downloads.typesafe.com/play/{{play_version}}/play-{{play_version}}.zip dest=/application/play-{{play_version}}.zip
+
+   - name: Extract play
+     shell: unzip -qo /application/play-{{play_version}}.zip -d /application
+
+   - name: Install postgres
+     yum: name={{item}} state=installed
+     with_items:
+      - postgresql-server
+      - python-psycopg2
+     notify: 
+      - Initiate database
+
+   - name: Start postgres service
+     service: name=postgresql state=started
+
+   - name: update postgres client configuration
+     copy: src={{templates}}/pg_hba.conf dest=/var/lib/pgsql/data/pg_hba.conf
+     notify: restart postgres
+
+   - name: ensure database is created
+     postgresql_db: name={{dbname}}
+   
+  handlers:
+ 
+    - name: Initiate database
+      command: service postgresql initdb
+
+    - name: restart postgres
+      service: name=postgresql state=restarted
